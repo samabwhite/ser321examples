@@ -18,6 +18,7 @@ package funHttpServer;
 
 import java.io.*;
 import java.net.*;
+import org.json.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +26,7 @@ import java.util.Random;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.nio.charset.Charset;
+import java.lang.Math;
 
 class WebServer {
   public static void main(String args[]) {
@@ -193,52 +195,126 @@ class WebServer {
             builder.append("\n");
             builder.append("File not found: " + file);
           }
-        } else if (request.contains("multiply?")) {
-          // This multiplies two numbers, there is NO error handling, so when
-          // wrong data is given this just crashes
+	} else if (request.contains("multiply?")) {
+		  Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+		  query_pairs = splitQuery(request.replace("multiply?", ""));
 
-          Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          // extract path parameters
-          query_pairs = splitQuery(request.replace("multiply?", ""));
+		  if (query_pairs.containsKey("num1") && query_pairs.containsKey("num2")) {
+		  	try {
+				Integer num1 = Integer.parseInt(query_pairs.get("num1"));
+				Integer num2 = Integer.parseInt(query_pairs.get("num2"));
+				Integer result = num1 * num2;
+				builder.append("HTTP/1.1 200 OK\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("Result is: " + result);
+			} catch (NumberFormatException e) {
+				builder.append("HTTP/1.1 400 Bad Request\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("Invalid input: Please ensure both num1 and num2 are numbers.");
+			}
+		  } else {
+		  	builder.append("HTTP/1.1 400 Bad Request\n");
+			builder.append("Content-Type: text/html; charset=utf-8\n");
+			builder.append("\n");
+			builder.append("Missing parameters: Please provide both num1 and num2.");
+		  }
+	} else if (request.contains("trig?")) {
+		Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+		query_pairs = splitQuery(request.replace("trig?", ""));
+		if (query_pairs.containsKey("len1") && query_pairs.containsKey("len2")) {
+			try {
+				Integer len1 = Integer.parseInt(query_pairs.get("len1"));
+                                Integer len2 = Integer.parseInt(query_pairs.get("len2"));
+				double hypotenuse = Math.sqrt((len1 * len1) + (len2 * len2));
+				double area = (len1 * len2) / 2;
+				double perimeter = len1 + len2 + hypotenuse;
+				builder.append("HTTP/1.1 200 OK\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("Here is some valuable information about the right triangle with sides: " + len1 + " and " + len2 + "\n");
+				builder.append("| Hypotenuse: " + hypotenuse + "\n");
+				builder.append("| Area: " + area + "\n");
+				builder.append("| Perimeter " + perimeter + "\n");
+				builder.append("| Angle A: " + (Math.acos(len1 / hypotenuse)) + "\n");
+				builder.append("| Angle B: " + (Math.asin(len2 / hypotenuse)) + "\n");
+			} catch (NumberFormatException e) {
+				builder.append("HTTP/1.1 400 Bad Request\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("Invalid input: Please ensure both len1 and len2 are numbers.");
+			}
+		} else {
+			builder.append("HTTP/1.1 400 Bad Request\n");
+			builder.append("Content-Type: text/html; charset=utf-8\n");
+			builder.append("\n");
+			builder.append("Missing parameters: Please provide both len1 and len2.");
+		}
+	} else if (request.contains("randomNumber?")) {
+		Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+		query_pairs = splitQuery(request.replace("randomNumber?", ""));
+		if (query_pairs.containsKey("min") && query_pairs.containsKey("max")) {
+			try {
+				Integer min = Integer.parseInt(query_pairs.get("min"));
+				Integer max = Integer.parseInt(query_pairs.get("max"));
+				Integer result = (int)(Math.random() * (max - min + 1)) + min;
+				builder.append("HTTP/1.1 200 OK\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("The Random Number Generator Between " + min + " and " + max + " is " + result);
+			} catch (NumberFormatException e) {
+				builder.append("HTTP/1.1 400 Bad Request\n");
+				builder.append("Content-Type: text/html; charset=utf-8\n");
+				builder.append("\n");
+				builder.append("Invalid input: Please ensure both min and max are numbers.");
+			}
+		} else {
+			builder.append("HTTP/1.1 400 Bad Request\n");
+			builder.append("Content-Type: text/html; charset=utf-8\n");
+			builder.append("\n");
+			builder.append("Missing parameters: Please provide both min and max.");
+		}
 
-          // extract required fields from parameters
-          Integer num1 = Integer.parseInt(query_pairs.get("num1"));
-          Integer num2 = Integer.parseInt(query_pairs.get("num2"));
 
-          // do math
-          Integer result = num1 * num2;
+	} else if (request.contains("github?")) {
+          try {
+	  	Map<String, String> query_pairs = new LinkedHashMap<String, String>();
+		query_pairs = splitQuery(request.replace("github?", ""));
+		String json = fetchURL("https://api.github.com/" + query_pairs.get("query"));
+		JSONArray repos = new JSONArray(json);
+		StringBuilder htmlResponse = new StringBuilder("<html><body><ul>");
 
-          // Generate response
-          builder.append("HTTP/1.1 200 OK\n");
-          builder.append("Content-Type: text/html; charset=utf-8\n");
-          builder.append("\n");
-          builder.append("Result is: " + result);
+		for (int i = 0; i < repos.length(); i++) {
+			JSONObject repo = repos.getJSONObject(i);
+			String fullName = repo.getString("full_name");
+			int id = repo.getInt("id");
+			String login = repo.getJSONObject("owner").getString("login");
+			htmlResponse.append("<li>")
+				.append("Full Name: ").append(fullName)
+				.append(", ID: ").append(id)
+				.append(", Owner: ").append(login)
+				.append("</li>");
+	  	}
 
-          // TODO: Include error handling here with a correct error code and
-          // a response that makes sense
+		htmlResponse.append("</ul></body></html>");
+		builder.append("HTTP/1.1 200 OK\n");
+		builder.append("Content-Type: text/html; charset=utf-8\n");
+		builder.append("\n");
+		builder.append(htmlResponse.toString());
 
-        } else if (request.contains("github?")) {
-          // pulls the query from the request and runs it with GitHub's REST API
-          // check out https://docs.github.com/rest/reference/
-          //
-          // HINT: REST is organized by nesting topics. Figure out the biggest one first,
-          //     then drill down to what you care about
-          // "Owner's repo is named RepoName. Example: find RepoName's contributors" translates to
-          //     "/repos/OWNERNAME/REPONAME/contributors"
-
-          Map<String, String> query_pairs = new LinkedHashMap<String, String>();
-          query_pairs = splitQuery(request.replace("github?", ""));
-          String json = fetchURL("https://api.github.com/" + query_pairs.get("query"));
-          System.out.println(json);
-
-          builder.append("HTTP/1.1 200 OK\n");
-          builder.append("Content-Type: text/html; charset=utf-8\n");
-          builder.append("\n");
-          builder.append("Check the todos mentioned in the Java source file");
-          // TODO: Parse the JSON returned by your fetch and create an appropriate
-          // response based on what the assignment document asks for
-
-        } else {
+	     } catch (JSONException e) {
+	     	builder.append("HTTP/1.1 500 Internal Server Error\n");
+		builder.append("Content-Type: text/html; charset=utf-8\n");
+		builder.append("\n");
+		builder.append("<html><body><p>Error parsing GitHub API response: " + e.getMessage() + "</p></body></html>");
+	     } catch (Exception e) {
+	     	builder.append("HTTP/1.1 400 Bad Request\n");
+		builder.append("Content-Type: text/html; charset=utf-8\n");
+		builder.append("\n");
+		builder.append("<html><body><p>Error in GitHub API request: " + e.getMessage() + "</p></body></html>");
+		 }
+	     } else {
           // if the request is not recognized at all
 
           builder.append("HTTP/1.1 400 Bad Request\n");
@@ -247,7 +323,7 @@ class WebServer {
           builder.append("I am not sure what you want me to do...");
         }
 
-        // Output
+	// Output
         response = builder.toString().getBytes();
       }
     } catch (IOException e) {
